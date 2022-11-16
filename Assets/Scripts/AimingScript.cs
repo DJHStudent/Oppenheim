@@ -11,7 +11,6 @@ public class AimingScript : MonoBehaviour
     [SerializeField] private float maxAngle = 90;
     [SerializeField] private float closestDist = Mathf.Infinity;
     [SerializeField] private GameObject closestObj = null;
-    [SerializeField] private GameObject soldierGun;
     private GameObject[] objNearby;
 
     private Quaternion targetRotation;
@@ -25,20 +24,19 @@ public class AimingScript : MonoBehaviour
     private void Update()
     {
         FindTarget();
-
         // face direction if there is a breakable object in view, else just look forward
-        if (ObjInFieldOfView(fovStartPoint) && (closestObj != null || closestObj.activeSelf))
+        if (ObjInFieldOfView(fovStartPoint) && closestObj != null)
         {
-            Vector3 direction = closestObj.transform.position - soldierGun.transform.position;
+            Vector3 direction = closestObj.transform.position - transform.position;
             targetRotation = Quaternion.LookRotation(direction);
-            lookAt = Quaternion.RotateTowards(soldierGun.transform.rotation, targetRotation, Time.deltaTime * lookSpeed);
-            soldierGun.transform.rotation = lookAt;
+            lookAt = Quaternion.RotateTowards(transform.rotation, targetRotation, Time.deltaTime * lookSpeed);
+            transform.rotation = lookAt;
         }
         else
         {
-            targetRotation = Quaternion.Euler(0, 0, 180);
-            soldierGun.transform.localRotation = Quaternion.RotateTowards(
-                soldierGun.transform.localRotation, targetRotation, Time.deltaTime * lookSpeed);
+            targetRotation = Quaternion.Euler(0, 0, 0);
+            transform.localRotation = Quaternion.RotateTowards(
+                transform.localRotation, targetRotation, Time.deltaTime * lookSpeed);
         }
     }
 
@@ -49,9 +47,9 @@ public class AimingScript : MonoBehaviour
         foreach (GameObject obj in objNearby)
         {
             // if (obj.GetComponent<Collider>().tag == "Breakable") {
-            float breakableDist = (obj.transform.position - soldierGun.transform.position).sqrMagnitude;
+            float breakableDist = (obj.transform.position - this.transform.position).sqrMagnitude;
             // Debug.Log("calculating breakable dis");
-            if (breakableDist < closestDist && obj.activeSelf)
+            if (breakableDist < closestDist)
             {
                 closestDist = breakableDist;
                 closestObj = obj;
@@ -65,9 +63,7 @@ public class AimingScript : MonoBehaviour
         }
 
         if (closestObj)
-        {
-            Debug.DrawLine(soldierGun.transform.position, closestObj.transform.position);
-        }
+            Debug.DrawLine(this.transform.position, closestObj.transform.position);
     }
 
     //check if the player POV can see the object
@@ -77,7 +73,7 @@ public class AimingScript : MonoBehaviour
         if (!closestObj)
             return false;
 
-        Vector3 targetDir = closestObj.transform.position - soldierGun.transform.position;
+        Vector3 targetDir = closestObj.transform.position - transform.position;
         float angle = Vector3.Angle(targetDir, thePlayer.transform.forward);
 
         if (angle < maxAngle)

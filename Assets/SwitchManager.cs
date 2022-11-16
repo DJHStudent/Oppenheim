@@ -181,8 +181,7 @@ public class SwitchManager : MonoBehaviour
                 ControlledPlayers.Add(playerID);
                 UncontrolledPlayers.RemoveAt(playerToControl);
                 GetPlayerByID(playerID).HumanPlayerIndex = (EPlayer)NumberOfPlayers;
-                
-                // Debug.Log("New Player Added: " + playerID + " Count:" + ControlledPlayers.Count + " dd: " + NumberOfPlayers);
+                Debug.Log("New Player Added: " + playerID + " Count:" + ControlledPlayers.Count + " dd: " + NumberOfPlayers);
             }
 
             if (bIsPlayerJoinScene)

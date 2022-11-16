@@ -326,8 +326,7 @@ public class SoldierMovement : PlayerController
             if (move.z > 0.25f)
             {
                 Rb.transform.position += cameraRelativeDirection * swimSpeed * Time.deltaTime;
-
-                // Debug.Log("Swim Left");
+                Debug.Log("Swim Left");
             }
 
             if (move.z < -0.25f)

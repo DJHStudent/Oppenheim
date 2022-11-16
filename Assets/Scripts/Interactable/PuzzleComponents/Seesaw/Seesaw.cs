@@ -4,8 +4,8 @@ using static global::BatMathematics;
 public class Seesaw : MonoBehaviour
 {
 	[Header("Ends")]
-	[SerializeField] private SeesawPressurePoint In;
-	[SerializeField] private SeesawPressurePoint Out;
+	[SerializeField] SeesawPressurePoint In;
+	[SerializeField] SeesawPressurePoint Out;
 
 	[Header("Weight")]
 	[SerializeField, Min(1f), Tooltip("The Mass in which this Seesaw is fully tilted.")] float MaxWeight;
@@ -21,24 +21,15 @@ public class Seesaw : MonoBehaviour
 
 	[SerializeField, Tooltip("How many degrees should this Seesaw be able to rotate?")] float MaxRotationDeltaAngle;
 
-	[Space]
-	[SerializeField] AudioController Audio;
-	AudioSource Creak;
-
 	float InRatio;
 	float OutRatio;
 	float SmoothDampVelocity;
 	//[SerializeField] private float timeReachTarget = 0.05f; // Doesn't work.
 
-	void Start()
-	{
-		Creak = Audio.Play("Creak", EAudioPlayOptions.FollowEmitter);
-	}
-
 	void FixedUpdate()
 	{
-		InWeight = -In.GetSideMass(); // Inbound Weight should 'drop' the Seesaw.
-		OutWeight = Out.GetSideMass();
+		InWeight = -In; // Inbound Weight should 'drop' the Seesaw.
+		OutWeight = Out;
 
 		// NaN Checks.
 		ClampMax(ref InWeight, MaxWeight);
@@ -49,19 +40,8 @@ public class Seesaw : MonoBehaviour
 
 		float Average = (InRatio + OutRatio) * .5f;
 
-		// Debug.Log("Average Old: " + Average);
-
 		// Rotate.
 		float Pitch = Mathf.Lerp(DefaultPitch, MaxPitch, Spring(Average));
-		if (Average < 0 && gameObject.name == "MoveableUpwards")
-        {
-			// print("Average New: " + (Average + 1) / 2);
-			float an = 0.5f;
-
-			// print("Average New Spring: " + Spring(an ));
-			Pitch = Mathf.Lerp(DefaultPitch, -MaxPitch, Spring(-Average));
-		}
-
 		Pitch = WrapAngle(Pitch);
 
 		// More NaN Checks.
@@ -69,8 +49,6 @@ public class Seesaw : MonoBehaviour
 		{
 			float SmoothedPitch = Mathf.SmoothDampAngle(transform.localEulerAngles.x, Pitch, ref SmoothDampVelocity, .1f, MaxRotationDeltaAngle);
 			transform.localEulerAngles = new Vector3(SmoothedPitch, transform.localEulerAngles.y, transform.localEulerAngles.z);
-
-			Creak.volume = Mathf.Clamp01(Mathf.Abs(SmoothDampVelocity));
 		}
 #if UNITY_EDITOR
 		CurrentPitch = Pitch;

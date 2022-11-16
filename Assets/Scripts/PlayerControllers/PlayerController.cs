@@ -8,7 +8,8 @@ using Unity.Services.Analytics;
 using Unity.Services.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+using TMPro;
 
 /// <summary>
 /// A base class for handling the common functionality across all players.
@@ -21,9 +22,8 @@ public abstract class PlayerController : MonoBehaviour
 
     // [SerializeField] private GameObject controlObj;
     [SerializeField] private GameObject abilityActiveObj;
-    [SerializeField] private Image abilityAmountImg;
+    [SerializeField] private TextMeshProUGUI abilityTxt;
     [SerializeField] private Canvas playerCanvas;
-    [SerializeField] private float deathHeight = 2.5f;
 
     private bool bControlsHidden = false;
     private Vector3 startPosition;
@@ -40,8 +40,6 @@ public abstract class PlayerController : MonoBehaviour
     private bool bMouseHeld = false;
     private Vector2 mouseControlInput;
     private float camZoomValue;
-
-    private Tween abilityChangeTween;
 
     // input handleing things
     public static IEnumerator DeathWaitTimer { get; private set; }
@@ -308,26 +306,13 @@ public abstract class PlayerController : MonoBehaviour
     public void AdjustAbilityValue(int amount)
     {
         AbilityUses += amount;
-        AbilityUses = Mathf.Clamp(AbilityUses, 0, DefaultPlayerData.MaxFuel);
-
-        float newFillValue = (float)AbilityUses / DefaultPlayerData.MaxFuel;
-
-        abilityChangeTween = new Tween(abilityAmountImg.fillAmount, newFillValue, Time.time, 1);
+        AbilityUses = Mathf.Max(0, AbilityUses);
+        abilityTxt.text = AbilityUses.ToString();
     }
 
     protected virtual void Update()
     {
         CamMoveMouse();
-
-        if (abilityChangeTween != null)
-        {
-            abilityAmountImg.fillAmount = abilityChangeTween.UpdatePositionEaseInBounceFloat();
-
-            if (abilityChangeTween.IsComplete())
-            {
-                abilityChangeTween = null;
-            }
-        }
 
         if (!BatMathematics.IsZero(camZoomValue))
         {
