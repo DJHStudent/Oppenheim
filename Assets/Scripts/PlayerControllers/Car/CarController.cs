@@ -6,68 +6,27 @@ using UnityEngine.InputSystem;
 public class CarController : PlayerController
 {
     [SerializeField] private List<AxleInfo> axleInfos; // the information about each individual axle
-    private bool bIsGrounded = true;
 
-    private Node dashTopNode;
-
-    [Header("Steering")]
-    [Space(1)]
-    [SerializeField] private Material indicatorMat;
-    [SerializeField] private Material normalLightMat;
-    [SerializeField] private float indicatorFrequency;
-
-    [Header("Breaking")]
-    [Space(1)]
-    [SerializeField] private float breakTorque; // maximum break torque which can be applied
-    [SerializeField] private Material tailLights;
-    [SerializeField] private Material illumimatedTailLights;
-    [SerializeField] private GameObject trail;
+    [SerializeField] private float breakTorque; // maximum torque the motor can apply to wheel
 
     [Header("Anti Roll Settings")]
-    [Space(1)]
     [SerializeField] private float popUpForce = 300; // maximum torque the motor can apply to wheel
     [SerializeField] private float antiRollTorque; // maximum torque the motor can apply to wheel
-    [SerializeField] private float rayCenterOffset;
+    [SerializeField] private float baseOffset;
     [SerializeField] private float distCheckForGround = 2.5f;
 
     [SerializeField] private float maxFlippedWait = 1.5f;
     private float flippedTime = 3;
 
-    [field: Header("Dash Settings")]
-    [field: Space(1)]
-    [field: SerializeField] public AnimationCurve DashSpeedCurve { get; private set; }
-
-    [field: SerializeField] public AnimationCurve TransitionRotCurve { get; private set; }
-
-    [field: SerializeField] public Vector3 DashOffset { get; private set; }
-
-    [field: SerializeField] public Material DashBodyMaterial { get; private set; }
-
-    [Header("Wind Particles")]
-    [Space(1)]
-    [SerializeField]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.OrderingRules", "SA1201:Elements should appear in the correct order", Justification = "Order would get messed up making it confusiong.")]
-    private ParticleSystem windParticles;
-    [Range(0, 1)]
-    [SerializeField] private float particelSpeedMultiplier;
+    private bool bIsDash;
 
     private Vector2 inputAmount; // current movement and steering input applied
 
-    public MeshRenderer BodyMeshRenderer { get; set; }
-
-    public Material[] CarMaterials { get; set; }
-
-    public Transform BodyTransform { get; private set; }
-
-    public bool BIsDash { get; set; }
-
-    public bool BAnyWheelGrounded { get; private set; } = true;
-
-    public float Motor { get; set; } = 0; // the current force of the cars motor
-
+    [SerializeField] private AnimationCurve accelerationCurve; // this is saying that at time xx acceleration is y, but I want at the known speed time is the unknown
+    private float maxAcceleratTime;
     public void ApplyLocalPositionToVisuals(WheelCollider collider)
     {
-        if (collider.transform.childCount == 0 || !collider.gameObject.activeSelf)
+        if (collider.transform.childCount == 0)
         {
             return;
         }
@@ -82,44 +41,14 @@ public class CarController : PlayerController
     // car movement is based on this https://docs.unity3d.com/2022.2/Documentation/Manual/WheelColliderTutorial.html
     public void FixedUpdate()
     {
-        if (CurrentFuel > 0)
-        {
-            ApplyMovement();
-            AntiFlip();
-        }
-    }
-
-    /// <summary>
-    /// checks if any part of the car is tounching the ground.
-    /// </summary>
-    /// <returns>if the car is tounching the ground or not.</returns>
-    public override bool IsGrounded()
-    {
-        Vector3 centerOffset = transform.position - (transform.up * rayCenterOffset);
-        Debug.DrawRay(transform.position - (transform.up * rayCenterOffset), Vector3.down * 5, Color.black);
-
-        return Physics.Raycast(centerOffset, Vector3.down, distCheckForGround);
+        ApplyMovement();
+        AntiFlip();
     }
 
     protected override void Start()
     {
         base.Start();
-        BodyMeshRenderer = transform.GetChild(1).gameObject.GetComponent<MeshRenderer>();
-        CarMaterials = BodyMeshRenderer.sharedMaterials;
-
-        BodyTransform = transform.GetChild(1);
-
-        foreach (AxleInfo axleInfo in axleInfos)
-        {
-            axleInfo.Trail = trail;
-            axleInfo.InitSkidTrails(Instantiate(trail).GetComponent<TrailRenderer>(), Instantiate(trail).GetComponent<TrailRenderer>());
-        }
-
-        BuildDashTree();
-
-        windParticles.Play();
-
-        InvokeRepeating("ApplyIndicator", indicatorFrequency, indicatorFrequency);
+        maxAcceleratTime = accelerationCurve[1].time;
     }
 
     protected override void Jump(InputAction.CallbackContext ctx)
@@ -134,183 +63,67 @@ public class CarController : PlayerController
 
     protected override void PerformAbility(InputAction.CallbackContext ctx)
     {
-        // note buggs out and fails if the car's wheels currently are not moving at all, otherwise it is fine
-        if (!BIsDash && BAnyWheelGrounded && Active)
-        {
-            BIsDash = true;
-        }
+        // Rb.AddForce(Rb.transform.forward * 10000, ForceMode.Impulse);
+        // bIsDash = true;
     }
 
-    protected override void Update()
-    {
-        base.Update();
-
-        bIsGrounded = IsGrounded();
-        SetWindParticles();
-    }
-
-    protected override void OnDeath()
-    {
-        base.OnDeath();
-        Debug.Log("Diying all the time");
-        foreach (AxleInfo axleInfo in axleInfos)
-        {
-            axleInfo.LeftWheel.gameObject.SetActive(false);
-            axleInfo.RightWheel.gameObject.SetActive(false);
-
-            axleInfo.LeftWheelDeath.SetActive(true);
-            axleInfo.RightWheelDeath.SetActive(true);
-
-            axleInfo.LeftWheelDeath.transform.parent = null;
-            axleInfo.LeftWheelDeath.transform.position = axleInfo.LeftWheel.gameObject.transform.position;
-            axleInfo.LeftWheelDeath.transform.rotation = axleInfo.LeftWheel.gameObject.transform.rotation;
-
-            axleInfo.RightWheelDeath.transform.parent = null;
-            axleInfo.RightWheelDeath.transform.position = axleInfo.RightWheel.gameObject.transform.position;
-            axleInfo.RightWheelDeath.transform.rotation = axleInfo.RightWheel.gameObject.transform.rotation;
-
-            // axleInfo.LeftWheelDeath.GetComponent<Rigidbody>().AddForce(100 * -transform.right);
-            // axleInfo.RightWheelDeath.GetComponent<Rigidbody>().AddForce(100 * transform.right);
-        }
-    }
-
-    protected override void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.green;
-        Gizmos.DrawCube(DashOffset + transform.position, Vector3.one * .25f);
-        Gizmos.color = Color.red;
-    }
-
-    protected override void Respawn()
-    {
-        base.Respawn();
-        foreach (AxleInfo axleInfo in axleInfos)
-        {
-            if (axleInfo.LeftWheel != null)
-            {
-                axleInfo.LeftWheel.gameObject.SetActive(true);
-                axleInfo.RightWheel.gameObject.SetActive(true);
-
-                axleInfo.LeftWheelDeath.SetActive(false);
-                axleInfo.RightWheelDeath.SetActive(false);
-
-                axleInfo.LeftWheelDeath.GetComponent<Rigidbody>().velocity = Vector3.zero;
-                axleInfo.LeftWheelDeath.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
-
-                axleInfo.RightWheelDeath.GetComponent<Rigidbody>().velocity = Vector3.zero;
-                axleInfo.RightWheelDeath.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
-            }
-        }
-    }
-
-    /// <summary>
-    /// Set the values for the wind particles to be based on the cars speed.
-    /// </summary>
-    private void SetWindParticles()
-    {
-        ParticleSystem.EmissionModule particleEmission = windParticles.emission;
-        ParticleSystem.MainModule mainSettings = windParticles.main;
-        float velocityDamped = Rb.velocity.magnitude * particelSpeedMultiplier;
-        if (BIsDash)
-        {
-            velocityDamped *= 5;
-        }
-
-        particleEmission.rateOverDistance = velocityDamped;
-        mainSettings.startSpeed = Rb.velocity.magnitude;
-    }
+    private float motor = 0;
 
     private void ApplyMovement()
     {
-        Motor = MovementSpeed * inputAmount.y;
-        float steering = BIsDash ? 0 : RotationSpeed * inputAmount.x;
+        // note that this is wrong and should be the Y value to get the X value
+        float timeAtCurrentSpeed = CurveTimeFromValue(Rb.velocity.magnitude / MovementSpeed, accelerationCurve); // idea here is to get the time for the current speed
+        float newSpeed = accelerationCurve.Evaluate(timeAtCurrentSpeed + Time.deltaTime * 5); // for this frame what would the speed be
 
-        if (Active)
-        {
-            PerformDash();
-        }
+        motor = newSpeed * inputAmount.y * MovementSpeed;
 
-        int numWheelGrounded = 0;
+        float steering = RotationSpeed * inputAmount.x;
+
+        // if (bIsDash)
+        // {
+        //    motor = MovementSpeed * 5000;
+
+        // Rb.AddForce(Rb.transform.forward * 1000, ForceMode.Acceleration);
+        //    bIsDash = false;
+        // }
         foreach (AxleInfo axleInfo in axleInfos)
         {
-            if (axleInfo.LeftWheel != null && axleInfo.RightWheel != null)
+            if (axleInfo.Steering)
             {
-                if (axleInfo.Steering && Active)
-                {
-                    axleInfo.LeftWheel.steerAngle = steering;
-                    axleInfo.RightWheel.steerAngle = steering;
-                }
-
-                if (axleInfo.Motor && Active)
-                {
-                    axleInfo.LeftWheel.motorTorque = Motor;
-                    axleInfo.RightWheel.motorTorque = Motor;
-                }
-
-                if (axleInfo.LeftWheel.isGrounded)
-                {
-                    numWheelGrounded++;
-                }
-
-                if (axleInfo.RightWheel.isGrounded)
-                {
-                    numWheelGrounded++;
-                }
-
-                ApplyBreaking(axleInfo);
-
-                ApplyLocalPositionToVisuals(axleInfo.LeftWheel);
-                ApplyLocalPositionToVisuals(axleInfo.RightWheel);
-            }
-        }
-
-        BAnyWheelGrounded = numWheelGrounded > 0;
-    }
-
-    private void PerformDash()
-    {
-        if (BIsDash)
-        {
-            dashTopNode.Evaluate();
-        }
-    }
-
-    /// <summary>
-    /// Apply a breaking force to the wheels.
-    /// </summary>
-    /// <param name="axleInfo">the axle of the car recieving breaking.</param>
-    private void ApplyBreaking(AxleInfo axleInfo)
-    {
-        // do breaking
-        if (!BIsDash && Motor == 0 && Mathf.Round(Rb.velocity.magnitude) > 0.25f)
-        {
-            if (CarMaterials[4] != illumimatedTailLights)
-            {
-                CarMaterials[4] = illumimatedTailLights;
-                BodyMeshRenderer.sharedMaterials = CarMaterials;
+                axleInfo.LeftWheel.steerAngle = steering;
+                axleInfo.RightWheel.steerAngle = steering;
             }
 
-            axleInfo.SetSkidTrails();
-            axleInfo.RightWheel.brakeTorque = breakTorque;
-            axleInfo.LeftWheel.brakeTorque = breakTorque;
-        }
-        else
-        {
-            if (CarMaterials[4] != tailLights)
+            if (axleInfo.Motor)
             {
-                CarMaterials[4] = tailLights;
-                BodyMeshRenderer.sharedMaterials = CarMaterials;
+                axleInfo.LeftWheel.motorTorque = motor;
+                axleInfo.RightWheel.motorTorque = motor;
             }
 
-            axleInfo.ActivateSkidTrails(false);
+            // do breaking
+            if (motor == 0)
+            {
+                axleInfo.RightWheel.brakeTorque = breakTorque;
+                axleInfo.LeftWheel.brakeTorque = breakTorque;
+            }
+            else
+            {
+                axleInfo.RightWheel.brakeTorque = 0;
+                axleInfo.LeftWheel.brakeTorque = 0;
+            }
 
-            axleInfo.RightWheel.brakeTorque = 0;
-            axleInfo.LeftWheel.brakeTorque = 0;
+            ApplyLocalPositionToVisuals(axleInfo.LeftWheel);
+            ApplyLocalPositionToVisuals(axleInfo.RightWheel);
         }
     }
 
     private async void AntiFlip()
     {
+        // checks if the car is on the ground or not
+        Vector3 centerOffset = transform.position - (transform.up * baseOffset);
+        bool bIsGrounded = Physics.Raycast(centerOffset, Vector3.down, distCheckForGround);
+        Debug.DrawRay(transform.position - (transform.up * baseOffset), Vector3.down * 5, Color.black);
+
         if (Vector3.Dot(transform.up, Vector3.up) < 0.9f && bIsGrounded && !IsCarMoving())
         {
             // push the car off the ground so that when it rotates back as it falls down it has no ground friction to worry about
@@ -360,6 +173,7 @@ public class CarController : PlayerController
     {
         GUI.Label(new Rect(10, 10, 250, 250), $"Speed: {CalculateSpeed():F1} km/h");
         GUI.Label(new Rect(10, 30, 250, 250), $"Current Up Direction Offset: {Vector3.Dot(transform.up, Vector3.up):F1}");
+        GUI.Label(new Rect(10, 50, 250, 250), $"Motor Torque: {motor:F1}");
     }
 #endif
 
@@ -369,97 +183,30 @@ public class CarController : PlayerController
         return Rb.velocity.magnitude * 3.6f;
     }
 
-    private void BuildDashTree()
+    private float CurveTimeFromValue(float value, AnimationCurve curve)
     {
-        DashTransition dashInit = new DashTransition(this, -1); // play the animation to transition to dashing
-        DashPerform dashPerform = new DashPerform(this); // perform the dash ability
-        DashTransition dashEnd = new DashTransition(this, 1, true); // play the animation to transition back to normal
-
-        dashTopNode = new Sequence(new List<Node> { dashInit, dashPerform, dashEnd });
-    }
-
-    private void ApplyIndicator()
-    {
-        if (Active)
+        float endTimeCheck = maxAcceleratTime;
+        float startTimeCheck = 0;
+        float currentTimeAt = (endTimeCheck + startTimeCheck) / 2;
+        int iterations = 0;
+        while (curve.Evaluate(currentTimeAt) > value + 0.05f || curve.Evaluate(currentTimeAt) < value - 0.05f) // || iterations < 20)
         {
-            if (inputAmount.x > 0.5f)
+            if (curve.Evaluate(currentTimeAt) > value)
             {
-                // flick on and off the right indicator
-                if (CarMaterials[5] != indicatorMat)
-                {
-                    CarMaterials[5] = indicatorMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
-                else if (CarMaterials[5] != normalLightMat)
-                {
-                    CarMaterials[5] = normalLightMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
-
-                if (CarMaterials[3] != normalLightMat)
-                {
-                    CarMaterials[3] = normalLightMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
-            }
-            else if (inputAmount.x < -0.5f)
-            {
-                // flick on and off the left indicator
-                if (CarMaterials[3] != indicatorMat)
-                {
-                    CarMaterials[3] = indicatorMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
-                else if (CarMaterials[3] != normalLightMat)
-                {
-                    CarMaterials[3] = normalLightMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
-
-                if (CarMaterials[5] != normalLightMat)
-                {
-                    CarMaterials[5] = normalLightMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
+                endTimeCheck = currentTimeAt;
             }
             else
             {
-                // no indicator pressed
-                if (CarMaterials[5] != normalLightMat)
-                {
-                    CarMaterials[5] = normalLightMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
-
-                if (CarMaterials[3] != normalLightMat)
-                {
-                    CarMaterials[3] = normalLightMat;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
+                startTimeCheck = currentTimeAt;
             }
-        }
-    }
 
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Breakable") && BIsDash)
-        {
-            // convert this to the event system
-            Destroy(collision.gameObject.GetComponent<MeshCollider>());
-            Destroy(collision.gameObject.GetComponent<MeshRenderer>());
-            Destroy(collision.gameObject.GetComponent<MeshFilter>());
-            for (int i = collision.gameObject.transform.childCount - 1; i >= 0; i--)
-            {
-                collision.gameObject.transform.GetChild(i).gameObject.AddComponent<Rigidbody>().AddForce(1500 * transform.forward);
-                collision.gameObject.transform.GetChild(i).gameObject.AddComponent<MeshCollider>().convex = true;
-                collision.gameObject.transform.GetChild(i).gameObject.GetComponent<MeshRenderer>().enabled = true;
-                collision.gameObject.transform.GetChild(i).parent = null;
-            }
+            currentTimeAt = (endTimeCheck + startTimeCheck) / 2;
+            iterations++;
+
         }
 
-        if (collision.gameObject.CompareTag("Wall") && BIsDash)
-        {
-            collision.gameObject.GetComponent<Rigidbody>().AddForce(50000 * transform.forward);
-        }
+        // Debug.Log(currentTimeAt + " also Value " + value);
+
+        return curve.Evaluate(currentTimeAt);
     }
 }

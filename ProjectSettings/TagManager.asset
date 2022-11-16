@@ -3,13 +3,7 @@
 --- !u!78 &1
 TagManager:
   serializedVersion: 2
-  tags:
-  - Breakable
-  - Clingable
-  - Destroyable
-  - Bat Camera
-  - Mango
-  - Wall
+  tags: []
   layers:
   - Default
   - TransparentFX
@@ -17,8 +11,8 @@ TagManager:
   - 
   - Water
   - UI
-  - IgnorePlayer
-  - Player
+  - 
+  - 
   - 
   - 
   - 
