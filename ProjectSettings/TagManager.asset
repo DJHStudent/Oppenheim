@@ -1,0 +1,59 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 2
+  tags:
+  - Breakable
+  - Clingable
+  - Destroyable
+  - Bat Camera
+  - Mango
+  - Wall
+  - Water
+  - Blueprint
+  - Hangable
+  - NodePlatform
+  - Bullet
+  - SkyPlatform
+  - Shelf
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - IgnorePlayer
+  - Player
+  - CameraCollide
+  - FanIgnore
+  - FanOnly
+  - Invisible Wall
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: 1
+    uniqueID: 3759797153
+    locked: 0
