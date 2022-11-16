@@ -3,11 +3,10 @@ using UnityEngine.Events;
 
 /// <summary>The base class for any <see cref="AButton"/> or <see cref="Switch"/>.</summary>
 [RequireComponent(typeof(BoxCollider))]
-public class Interactable : UniqueID
+public class Interactable : MonoBehaviour
 {
 	/// <summary>Event which fires when something Enters the Interactable Collider.</summary>
 	public UnityEvent<Interactable, GameObject> OnActivated;
-
 	/// <summary>Event which fires when something Exits the Interactable Collider.</summary>
 	public UnityEvent<Interactable, GameObject> OnDeactivated;
 
@@ -15,30 +14,26 @@ public class Interactable : UniqueID
 	{
 		get
 		{
-			if (!boxCollider)
-			{
-				boxCollider = GetComponent<BoxCollider>();
-			}
-
-			return boxCollider;
+			if (!BoxCollider)
+				BoxCollider = GetComponent<BoxCollider>();
+			return BoxCollider;
 		}
-
 		private set
 		{
-			boxCollider = value;
+			BoxCollider = value;
 		}
 	}
 
-	private BoxCollider boxCollider;
+	BoxCollider BoxCollider;
 
 	public void BroadcastActive(Collider Sender)
 	{
-		OnActivated?.Invoke(this, Sender ? Sender.gameObject : null);
+		OnActivated?.Invoke(this, Sender.gameObject);
 	}
 
 	public void BroadcastDeactive(Collider Sender)
 	{
-		OnDeactivated?.Invoke(this, Sender ? Sender.gameObject : null);
+		OnDeactivated?.Invoke(this, Sender.gameObject);
 	}
 }
 

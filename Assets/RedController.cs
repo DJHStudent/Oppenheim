@@ -1,5 +1,3 @@
-#if false
-
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -98,4 +96,3 @@ public class RedController : MonoBehaviour
         return active;
     }
 }
-#endif

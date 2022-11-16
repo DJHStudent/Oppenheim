@@ -6,17 +6,11 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
-/// <summary>
-/// Old script, should be removed at some point
-/// </summary>
 public class TextInfoManager : MonoBehaviour
 {
     private InputActions Inputs;
 
     private bool isComplete = false;
-    [SerializeField] private GameObject generalControls;
-    [SerializeField] private GameObject introControls;
-
     [Header("Annoucements")]
     [SerializeField] private List<string> annoucementTxt = new List<string>();
     [SerializeField] private float charWaitTime = 0.1f;
@@ -34,7 +28,7 @@ public class TextInfoManager : MonoBehaviour
     private TextMeshProUGUI currentTxt;
     private List<string> currentList = new List<string>();
 
-    public void InitilizeAnnoucement()
+    private void Start()
     {
         lineAt = 0;
         charAt = 0;
@@ -60,14 +54,13 @@ public class TextInfoManager : MonoBehaviour
 
     private void NextLine()
     {
-        if (!isComplete && currentTxt != null)
+        if (!isComplete)
         {
             StopAllCoroutines();
             lineAt++;
             currentTxt.text = string.Empty;
             charAt = 0;
-
-            // Debug.Log(currentList.Count + "waesrdfgthdfrdwaesfrdgd" + lineAt);
+            Debug.Log(currentList.Count + "waesrdfgthdfrdwaesfrdgd" + lineAt);
             if (lineAt < currentList.Count)
             {
                 charAt = 0;
@@ -89,8 +82,6 @@ public class TextInfoManager : MonoBehaviour
                 speechBubbleObj.SetActive(false);
                 UIEvents.ShowInstructions();
                 isComplete = true;
-                introControls.SetActive(false);
-                generalControls.SetActive(true);
             }
         }
     }
@@ -110,15 +101,11 @@ public class TextInfoManager : MonoBehaviour
             speechBubbleObj.SetActive(false);
             UIEvents.ShowInstructions();
             isComplete = true;
-            introControls.SetActive(false);
-            generalControls.SetActive(true);
         }
     }
 
     private void OnEnable()
     {
-        UIEvents.OnBeginAnnoucement += InitilizeAnnoucement;
-
         Inputs = new InputActions();
 
         Inputs.Player.NextLine.performed += KeyNextLine;
@@ -129,14 +116,9 @@ public class TextInfoManager : MonoBehaviour
 
     private void OnDisable()
     {
-        UIEvents.OnBeginAnnoucement -= InitilizeAnnoucement;
+        Inputs.Player.NextLine.performed -= KeyNextLine;
+        Inputs.Player.SkipTut.performed -= SkipIntro;
 
-        if (Inputs != null)
-        {
-            Inputs.Player.NextLine.performed -= KeyNextLine;
-            Inputs.Player.SkipTut.performed -= SkipIntro;
-
-            Inputs.Player.Disable();
-        }
+        Inputs.Player.Disable();
     }
 }

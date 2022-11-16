@@ -1,27 +1,17 @@
-using EventSystem;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using static global::BatMathematics;
 using static UnityEngine.InputSystem.InputAction;
+using static global::BatMathematics;
+using UnityEngine.InputSystem;
 
 [RequireComponent(typeof(BatMovement), typeof(BatEvents))]
 public class Bat : PlayerController
 {
 #if UNITY_EDITOR
-	[field: Header("Start Reset")]
-	[field: ContextMenuItem("Set Start Transform", "SetStartTransform")]
-#pragma warning disable SA1202 // Elements should be ordered by access
-	[field: SerializeField] public Vector3 StageStartPosition { get; set; }
-
-	[field: ContextMenuItem("Move to Start", "MoveToStartTransform")]
-	[field: SerializeField] public Quaternion StageStartRotation { get; set; }
-#pragma warning restore SA1202 // Elements should be ordered by access
-
+	[Header("EDITOR ONLY")]
+	// True when on a testing scene. Sets this Bat to 'Active' so
+	// that it can be controlled in a scene without a SwitchManager.
+	[SerializeField] bool bIsStandalone;
 #endif
-
-	[SerializeField] private GameObject ragdol;
-	[SerializeField] private GameObject baseMesh;
-	private BoxCollider boxCollider;
 
 	// Expose Protected Fields.
 	public Rigidbody Physics => Rb;
@@ -42,7 +32,6 @@ public class Bat : PlayerController
 
 		MovementComponent = GetComponent<BatMovement>();
 		EventsComponent = GetComponent<BatEvents>();
-		boxCollider = gameObject.GetComponent<BoxCollider>();
 	}
 
 	public override void ActivateInput(int playerID, PlayerInput playerInput)
@@ -51,6 +40,13 @@ public class Bat : PlayerController
 		{
 			base.ActivateInput(playerID, playerInput);
 			BindMiscellaneousInputs();
+
+#if UNITY_EDITOR
+			if (bIsStandalone)
+			{
+				Activate();
+			}
+#endif
 		}
 	}
 
@@ -75,15 +71,14 @@ public class Bat : PlayerController
 		PlayerInput.FindAction("Look").canceled += (CallbackContext Context) =>
 		{
 			MovementComponent.LookBinding(ref Context);
-
-			// MovementComponent.HandleLook(ref Context);
+			//MovementComponent.HandleLook(ref Context);
 		};
 	}
 
-	//public void AdjustEnergy(float amount)
-	//{
-	//	AdjustFuelValue(amount);
-	//}
+	public void AdjustEnergy(float amount)
+	{
+		AdjustFuelValue(amount);
+	}
 
 	public void AdjustHealth(float amount)
 	{
@@ -109,75 +104,23 @@ public class Bat : PlayerController
 		// Set the origin of the Ground Check to the centre of the Bat.
 		WorldToLocalDown += Rb.centerOfMass;
 
-		return transform.position + WorldToLocalDown + groundCheckPosition;
+		return transform.position + WorldToLocalDown;
 	}
 
-	protected override bool ShouldTakeFallDamage(Collision Collision, out float RelativeVelocity)
+	protected override bool ShouldTakeFallDamage(Collision collision, out float relativeVelocity)
 	{
-		RelativeVelocity = Collision.relativeVelocity.magnitude;
+		relativeVelocity = collision.relativeVelocity.magnitude;
 
-		if (RelativeVelocity < FallDamageThreshold)
-		{
+		if (relativeVelocity < FallDamageThreshold)
 			return false;
-		}
 
 		// Take damage if landing/crashing at an Angle > than 30 degrees of the surface.
-		float Angle = FAngle(transform.up, Collision.contacts[0].normal);
+		float Angle = FAngle(transform.up, collision.contacts[0].normal);
 		bool bTakeFallDamage = Angle > 30f;
 
 		if (bTakeFallDamage)
-		{
-			Debug.Log($"Collision with {Collision.gameObject.name} at {Angle:F0} degrees at {RelativeVelocity:F0}m/s");
-		}
+			Debug.Log($"At Angle: {Angle}");
 
 		return bTakeFallDamage;
 	}
-
-	protected override void PlayFuelCollectionSound()
-	{
-		Events.OnMangoCollected();
-	}
-
-	public override void OnDeath()
-	{
-		base.OnDeath();
-		MovementComponent.ForceStopAllMovement();
-
-		baseMesh.SetActive(false);
-		boxCollider.enabled = false;
-		ragdol.SetActive(true);
-		Rb.isKinematic = true;
-		ragdol.transform.position = transform.position;
-	}
-
-	protected override void Respawn()
-	{
-		baseMesh.SetActive(true);
-		boxCollider.enabled = true;
-		ragdol.SetActive(false);
-		Rb.isKinematic = false;
-		MovementComponent.ForceStopAllMovement();
-		base.Respawn();
-	}
-
-	protected override void OnDustParticles(Vector3 Position)
-	{
-		base.OnDustParticles(Position);
-
-		Audio.PlayUnique("Crash", EAudioPlayOptions.AtTransformPosition | EAudioPlayOptions.DestroyOnEnd, .321f);
-	}
-
-#if UNITY_EDITOR
-	private void SetStartTransform()
-	{
-		StageStartPosition = transform.position;
-		StageStartRotation = transform.rotation;
-	}
-
-	private void MoveToStartTransform()
-	{
-		transform.rotation = StageStartRotation;
-		transform.position = StageStartPosition;
-	}
-#endif
 }

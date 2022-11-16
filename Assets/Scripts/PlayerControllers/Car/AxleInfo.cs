@@ -10,14 +10,11 @@ public class AxleInfo
 {
     private TrailRenderer leftSkidTrails;
     private TrailRenderer rightSkidTrails;
-    private const float skidOffsetValue = 0.2f;
 
     [field: SerializeField] public WheelCollider LeftWheel { get; private set; }
-
     [field: SerializeField] public GameObject LeftWheelDeath { get; private set; }
 
     [field: SerializeField] public WheelCollider RightWheel { get; private set; }
-
     [field: SerializeField] public GameObject RightWheelDeath { get; private set; }
 
     [field: SerializeField] public bool Motor { get; private set; } // is this wheel attached to motor?
@@ -46,7 +43,7 @@ public class AxleInfo
     {
         if (LeftWheel.isGrounded)
         {
-            Vector3 leftTrailPos = LeftWheel.transform.position - (LeftWheel.transform.parent.up * LeftWheel.radius * skidOffsetValue);
+            Vector3 leftTrailPos = LeftWheel.transform.position - (LeftWheel.transform.parent.up * LeftWheel.radius * 0.99f);
             if (leftSkidTrails == null || leftSkidTrails.emitting == false)
             {
                 leftSkidTrails = MonoBehaviour.Instantiate(Trail, leftTrailPos, Quaternion.identity).GetComponent<TrailRenderer>();
@@ -65,7 +62,7 @@ public class AxleInfo
 
         if (RightWheel.isGrounded)
         {
-            Vector3 rightTrailPos = RightWheel.transform.position - (RightWheel.transform.parent.up * RightWheel.radius * skidOffsetValue);
+            Vector3 rightTrailPos = RightWheel.transform.position - (RightWheel.transform.parent.up * RightWheel.radius * 0.99f);
             if (rightSkidTrails == null || rightSkidTrails.emitting == false)
             {
                 rightSkidTrails = MonoBehaviour.Instantiate(Trail, rightTrailPos, Quaternion.identity).GetComponent<TrailRenderer>();
