@@ -1,27 +1,14 @@
 using System.Collections;
 using System.Collections.Generic;
-using EventSystem;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class CarController : PlayerController
 {
-#if UNITY_EDITOR
-    [field: Header("Start Reset")]
-    [field: ContextMenuItem("Set Start Transform", "SetStartTransform")]
-#pragma warning disable SA1202 // Elements should be ordered by access
-    [field: SerializeField] public Vector3 StageStartPosition { get; set; }
-
-    [field: ContextMenuItem("Move to Start", "MoveToStartTransform")]
-    [field: SerializeField] public Quaternion StageStartRotation { get; set; }
-#pragma warning restore SA1202 // Elements should be ordered by access
-
-#endif
-
-    [SerializeField] public List<AxleInfo> axleInfos; // the information about each individual axle
+    [SerializeField] private List<AxleInfo> axleInfos; // the information about each individual axle
     private bool bIsGrounded = true;
 
-    private Node<CarController> dashTopNode;
+    private Node dashTopNode;
 
     [Header("Steering")]
     [Space(1)]
@@ -46,12 +33,8 @@ public class CarController : PlayerController
     [SerializeField] private float maxFlippedWait = 1.5f;
     private float flippedTime = 3;
 
-    private AudioSource engineAudio;
-
     [field: Header("Dash Settings")]
     [field: Space(1)]
-    [field: SerializeField] public LayerMask PlayerLayer { get; private set; }
-
     [field: SerializeField] public AnimationCurve DashSpeedCurve { get; private set; }
 
     [field: SerializeField] public AnimationCurve TransitionRotCurve { get; private set; }
@@ -59,10 +42,6 @@ public class CarController : PlayerController
     [field: SerializeField] public Vector3 DashOffset { get; private set; }
 
     [field: SerializeField] public Material DashBodyMaterial { get; private set; }
-
-    [field: SerializeField] public float DashGroundCheckLength { get; private set; } = 2;
-
-    [SerializeField] public bool BCancelDash { get; set; } = false;
 
     [Header("Wind Particles")]
     [Space(1)]
@@ -81,8 +60,6 @@ public class CarController : PlayerController
     public Transform BodyTransform { get; private set; }
 
     public bool BIsDash { get; set; }
-
-    public bool BAllowEndBreaking { get; set; } = false;
 
     public bool BAnyWheelGrounded { get; private set; } = true;
 
@@ -103,14 +80,8 @@ public class CarController : PlayerController
     }
 
     // car movement is based on this https://docs.unity3d.com/2022.2/Documentation/Manual/WheelColliderTutorial.html
-    protected override void FixedUpdate()
+    public void FixedUpdate()
     {
-        base.FixedUpdate();
-        if (!Active)
-        {
-            inputAmount = Vector2.zero;
-        }
-
         if (CurrentFuel > 0)
         {
             ApplyMovement();
@@ -149,8 +120,6 @@ public class CarController : PlayerController
         windParticles.Play();
 
         InvokeRepeating("ApplyIndicator", indicatorFrequency, indicatorFrequency);
-
-        PlayEngineSounds();
     }
 
     protected override void Jump(InputAction.CallbackContext ctx)
@@ -161,26 +130,14 @@ public class CarController : PlayerController
     protected override void Movement(InputAction.CallbackContext ctx)
     {
         inputAmount = ctx.ReadValue<Vector2>();
-        inputAmount.x = AjustMovementValue(inputAmount.x);
-        inputAmount.y = AjustMovementValue(inputAmount.y);
-        if (ctx.control.device.name != "Keyboard")
-        {
-            inputAmount.y /= 5;
-            inputAmount.x /= 5;
-        }
-
-        PlayEngineSounds();
     }
 
     protected override void PerformAbility(InputAction.CallbackContext ctx)
     {
         // note buggs out and fails if the car's wheels currently are not moving at all, otherwise it is fine
-        if (AbilityUses > 0 && !BIsDash && BAnyWheelGrounded && Active)
+        if (!BIsDash && BAnyWheelGrounded && Active)
         {
             BIsDash = true;
-            AdjustAbilityValue(-1);
-
-            Audio.PlayUnique("Rev", EAudioPlayOptions.FollowEmitter | EAudioPlayOptions.DestroyOnEnd);
         }
     }
 
@@ -192,15 +149,10 @@ public class CarController : PlayerController
         SetWindParticles();
     }
 
-    public override void OnDeath()
+    protected override void OnDeath()
     {
         base.OnDeath();
-        inputAmount = Vector2.zero;
-        if (BIsDash)
-        {
-            BCancelDash = true;
-        }
-
+        Debug.Log("Diying all the time");
         foreach (AxleInfo axleInfo in axleInfos)
         {
             axleInfo.LeftWheel.gameObject.SetActive(false);
@@ -220,8 +172,6 @@ public class CarController : PlayerController
             // axleInfo.LeftWheelDeath.GetComponent<Rigidbody>().AddForce(100 * -transform.right);
             // axleInfo.RightWheelDeath.GetComponent<Rigidbody>().AddForce(100 * transform.right);
         }
-
-        Audio.Play("Death", EAudioPlayOptions.AtTransformPosition | EAudioPlayOptions.DestroyOnEnd);
     }
 
     protected override void OnDrawGizmosSelected()
@@ -229,19 +179,11 @@ public class CarController : PlayerController
         Gizmos.color = Color.green;
         Gizmos.DrawCube(DashOffset + transform.position, Vector3.one * .25f);
         Gizmos.color = Color.red;
-
-        Gizmos.DrawLine(transform.position, transform.position + (Vector3.down * DashGroundCheckLength));
     }
 
     protected override void Respawn()
     {
         base.Respawn();
-        inputAmount = Vector2.zero;
-        if (BIsDash)
-        {
-            BCancelDash = true;
-        }
-
         foreach (AxleInfo axleInfo in axleInfos)
         {
             if (axleInfo.LeftWheel != null)
@@ -259,30 +201,6 @@ public class CarController : PlayerController
                 axleInfo.RightWheelDeath.GetComponent<Rigidbody>().angularVelocity = Vector3.zero;
             }
         }
-    }
-
-    protected override void OnCollisionEnter(Collision collision)
-    {
-        base.OnCollisionEnter(collision);
-        if (collision.gameObject.TryGetComponent(out BreakableObj breakableObj) && BIsDash)
-        {
-            breakableObj.OnBreak();
-        }
-
-        if (collision.gameObject.CompareTag("Wall") && BIsDash)
-        {
-            Vector3 boxLevelPos = new Vector3(transform.position.x, collision.gameObject.transform.position.y, transform.position.z);
-            Vector3 direction = (collision.gameObject.transform.position - boxLevelPos).normalized;
-            collision.gameObject.GetComponent<PushableBox>().ApplyMovementForce(direction);
-            BCancelDash = true;
-
-            Audio.Play(RandomPushableSound(), EAudioPlayOptions.AtTransformPosition | EAudioPlayOptions.DestroyOnEnd);
-        }
-    }
-
-    protected override void PlayFuelCollectionSound()
-    {
-        Audio.Play("Rev", EAudioPlayOptions.Global | EAudioPlayOptions.DestroyOnEnd);
     }
 
     /// <summary>
@@ -364,28 +282,17 @@ public class CarController : PlayerController
     private void ApplyBreaking(AxleInfo axleInfo)
     {
         // do breaking
-        if ((!BIsDash || BAllowEndBreaking) && Motor == 0)
+        if (!BIsDash && Motor == 0 && Mathf.Round(Rb.velocity.magnitude) > 0.25f)
         {
-            if (Rb.velocity.magnitude > 0.25f)
+            if (CarMaterials[4] != illumimatedTailLights)
             {
-                if (CarMaterials[4] != illumimatedTailLights)
-                {
-                    CarMaterials[4] = illumimatedTailLights;
-                    BodyMeshRenderer.sharedMaterials = CarMaterials;
-                }
-
-                axleInfo.RightWheel.brakeTorque = breakTorque;
-                axleInfo.LeftWheel.brakeTorque = breakTorque;
+                CarMaterials[4] = illumimatedTailLights;
+                BodyMeshRenderer.sharedMaterials = CarMaterials;
             }
 
-            if (Rb.velocity.magnitude > 3.45f)
-            {
-                axleInfo.SetSkidTrails();
-                if (BAnyWheelGrounded)
-                {
-                    Audio.PlayUnique("Skid", EAudioPlayOptions.FollowEmitter | EAudioPlayOptions.DestroyOnEnd);
-                }
-            }
+            axleInfo.SetSkidTrails();
+            axleInfo.RightWheel.brakeTorque = breakTorque;
+            axleInfo.LeftWheel.brakeTorque = breakTorque;
         }
         else
         {
@@ -404,7 +311,7 @@ public class CarController : PlayerController
 
     private async void AntiFlip()
     {
-        if (Vector3.Dot(transform.up, Vector3.up) < 0.75f && bIsGrounded && !IsCarMoving())
+        if (Vector3.Dot(transform.up, Vector3.up) < 0.9f && bIsGrounded && !IsCarMoving())
         {
             // push the car off the ground so that when it rotates back as it falls down it has no ground friction to worry about
             Rb.AddForce(Vector3.up * popUpForce, ForceMode.Acceleration);
@@ -415,7 +322,7 @@ public class CarController : PlayerController
             targetRotation.eulerAngles = new Vector3(0, transform.eulerAngles.y, 0);
 
             // smoothly rotate back up while not being mostly aligned with the up axis
-            while (this != null && Vector3.Dot(transform.up, Vector3.up) < 0.9f)
+            while (Vector3.Dot(transform.up, Vector3.up) < 0.9f)
             {
                 Rb.rotation = Quaternion.RotateTowards(Rb.rotation, targetRotation, antiRollTorque * Time.deltaTime);
                 await System.Threading.Tasks.Task.Yield();
@@ -468,7 +375,7 @@ public class CarController : PlayerController
         DashPerform dashPerform = new DashPerform(this); // perform the dash ability
         DashTransition dashEnd = new DashTransition(this, 1, true); // play the animation to transition back to normal
 
-        dashTopNode = new Sequence<CarController>(new List<Node<CarController>> { dashInit, dashPerform, dashEnd });
+        dashTopNode = new Sequence(new List<Node> { dashInit, dashPerform, dashEnd });
     }
 
     private void ApplyIndicator()
@@ -533,35 +440,26 @@ public class CarController : PlayerController
         }
     }
 
-    private void PlayEngineSounds()
+    private void OnCollisionEnter(Collision collision)
     {
-	    Audio.PlayUnique(RandomIdleSound(), EAudioPlayOptions.FollowEmitter);
-    }
+        if (collision.gameObject.CompareTag("Breakable") && BIsDash)
+        {
+            // convert this to the event system
+            Destroy(collision.gameObject.GetComponent<MeshCollider>());
+            Destroy(collision.gameObject.GetComponent<MeshRenderer>());
+            Destroy(collision.gameObject.GetComponent<MeshFilter>());
+            for (int i = collision.gameObject.transform.childCount - 1; i >= 0; i--)
+            {
+                collision.gameObject.transform.GetChild(i).gameObject.AddComponent<Rigidbody>().AddForce(1500 * transform.forward);
+                collision.gameObject.transform.GetChild(i).gameObject.AddComponent<MeshCollider>().convex = true;
+                collision.gameObject.transform.GetChild(i).gameObject.GetComponent<MeshRenderer>().enabled = true;
+                collision.gameObject.transform.GetChild(i).parent = null;
+            }
+        }
 
-    private string RandomIdleSound()
-    {
-        bool bRandomBool = Random.Range(0f, 1f) < .5f;
-
-        return bRandomBool ? "Engine Idle 2" : "Engine Idle 1";
+        if (collision.gameObject.CompareTag("Wall") && BIsDash)
+        {
+            collision.gameObject.GetComponent<Rigidbody>().AddForce(50000 * transform.forward);
+        }
     }
-
-    private string RandomPushableSound()
-    {
-        bool bRandomBool = Random.Range(0f, 1f) < .5f;
-
-        return bRandomBool ? "Hit Pushable 1" : "Hit Pushable 2";
-    }
-#if UNITY_EDITOR
-    private void SetStartTransform()
-    {
-        StageStartPosition = transform.position;
-        StageStartRotation = transform.rotation;
-    }
-
-    private void MoveToStartTransform()
-    {
-        transform.rotation = StageStartRotation;
-        transform.position = StageStartPosition;
-    }
-#endif
 }

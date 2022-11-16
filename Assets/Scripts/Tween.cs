@@ -13,15 +13,6 @@ public class Tween
         this.Duration = duration;
     }
 
-    public Tween(Color startColour, Color endColour, float startTime, float duration)
-    {
-        // this.Target = Target;
-        this.StartColour = startColour;
-        this.EndColour = endColour;
-        this.StartTime = startTime;
-        this.Duration = duration;
-    }
-
     public Tween(Quaternion startRot, Quaternion endRot, float startTime, float duration)
     {
         // this.Target = Target;
@@ -53,10 +44,6 @@ public class Tween
 
     public Quaternion EndRot { get; private set; }
 
-    public Color StartColour { get; private set; }
-
-    public Color EndColour { get; private set; }
-
     public float StartTime { get; private set; }
 
     public float Duration { get; private set; }
@@ -64,12 +51,6 @@ public class Tween
     public bool IsComplete()
     {
         return (Time.time - StartTime) / Duration >= 1;
-    }
-
-    public float UpdateValue()
-    {
-        float timeFraction = (Time.time - StartTime) / Duration;
-        return Mathf.Lerp(StartPosCircular, EndPosCircular, timeFraction);
     }
 
     public Vector3 UpdatePosition()
@@ -82,18 +63,6 @@ public class Tween
     {
         float timeFraction = (Time.time - StartTime) / Duration;
         return Vector3.Lerp(StartPos, EndPos, curve.Evaluate(timeFraction));
-    }
-
-    public Color UpdateColourCurve(AnimationCurve curve)
-    {
-        float timeFraction = (Time.time - StartTime) / Duration;
-        return Color.Lerp(StartColour, EndColour, curve.Evaluate(timeFraction));
-    }
-
-    public Color UpdateColour()
-    {
-        float timeFraction = (Time.time - StartTime) / Duration;
-        return Color.Lerp(StartColour, EndColour, timeFraction);
     }
 
     public Vector3 UpdatePositionCircular(float radius, Vector2 centre)
@@ -154,30 +123,6 @@ public class Tween
         }
     }
 
-    public float UpdatePositionEaseInBounceFloat()
-    {
-        float timeFraction = 1 - ((Time.time - StartTime) / Duration);
-        const float n1 = 7.5625f;
-        const float d1 = 2.75f;
-
-        if (timeFraction < 1 / d1)
-        {
-            return Mathf.Lerp(StartPosCircular, EndPosCircular, 1 - (n1 * timeFraction * timeFraction));
-        }
-        else if (timeFraction < 2 / d1)
-        {
-            return Mathf.Lerp(StartPosCircular, EndPosCircular, 1 - ((n1 * (timeFraction -= 1.5f / d1) * timeFraction) + 0.75f));
-        }
-        else if (timeFraction < 2.5f / d1)
-        {
-            return Mathf.Lerp(StartPosCircular, EndPosCircular, 1 - ((n1 * (timeFraction -= 2.25f / d1) * timeFraction) + 0.9375f));
-        }
-        else
-        {
-            return Mathf.Lerp(StartPosCircular, EndPosCircular, 1 - ((n1 * (timeFraction -= 2.625f / d1) * timeFraction) + 0.984375f));
-        }
-    }
-
     public Vector3 UpdatePositionEaseOutCirc()
     {
         float timeFraction = (Time.time - StartTime) / Duration;
@@ -207,7 +152,7 @@ public class Tween
         float timeFraction = (Time.time - StartTime) / Duration;
         timeFraction = Mathf.Clamp(timeFraction, 0.0f, 1.0f);
         timeFraction = Mathf.Pow(2, 10 * (timeFraction - 1));
-        // Debug.Log(timeFraction);
+        Debug.Log(timeFraction);
         return Vector3.Lerp(StartPos, EndPos, timeFraction);
     }
 }

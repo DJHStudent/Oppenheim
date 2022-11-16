@@ -4,7 +4,6 @@ using EventSystem;
 using UnityEngine;
 using UnityEngine.UI;
 
-/////// old Not sure, but think it is not in use anymore.
 /// <summary>
 /// The UI each player uses, being assigned to the corresponding player canvas.
 /// </summary>
